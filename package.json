@@ -8,6 +8,7 @@
     "build": "electron-vite build",
     "build:mac": "npm run build && electron-builder --mac",
     "build:win": "npm run build && electron-builder --win",
+    "build:linux": "npm run build && electron-builder --linux",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -47,6 +48,10 @@
     },
     "win": {
       "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Office"
     },
     "files": [
       "out/**/*"
