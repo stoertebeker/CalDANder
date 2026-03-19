@@ -29,28 +29,19 @@ const api = {
   listFolders:   (accountId: string):                  Promise<Folder[]>       => ipcRenderer.invoke('mail:list-folders', accountId),
 
   // Messages
-  listMessages:  (accountId: string, folder: string, page: number): Promise<MessageSummary[]>
-                                                                                => ipcRenderer.invoke('mail:list-messages', accountId, folder, page),
-  fetchMessage:  (accountId: string, folder: string, uid: number):  Promise<FullMessage>
-                                                                                => ipcRenderer.invoke('mail:fetch-message', accountId, folder, uid),
-  search:        (accountId: string, folder: string, criteria: SearchCriteria): Promise<MessageSummary[]>
-                                                                                => ipcRenderer.invoke('mail:search', accountId, folder, criteria),
-  markRead:      (accountId: string, folder: string, uid: number, read: boolean): Promise<void>
-                                                                                => ipcRenderer.invoke('mail:mark-read', accountId, folder, uid, read),
-  flagMessage:   (accountId: string, folder: string, uid: number, flagged: boolean): Promise<void>
-                                                                                => ipcRenderer.invoke('mail:flag', accountId, folder, uid, flagged),
-  deleteMessage: (accountId: string, folder: string, uid: number):  Promise<void>
-                                                                                => ipcRenderer.invoke('mail:delete', accountId, folder, uid),
-  moveMessage:   (accountId: string, folder: string, uid: number, dest: string): Promise<void>
-                                                                                => ipcRenderer.invoke('mail:move', accountId, folder, uid, dest),
+  listMessages:  (accountId: string, folder: string, page: number) => ipcRenderer.invoke('mail:list-messages', accountId, folder, page) as Promise<MessageSummary[]>,
+  fetchMessage:  (accountId: string, folder: string, uid: number) => ipcRenderer.invoke('mail:fetch-message', accountId, folder, uid) as Promise<FullMessage>,
+  search:        (accountId: string, folder: string, criteria: SearchCriteria) => ipcRenderer.invoke('mail:search', accountId, folder, criteria) as Promise<MessageSummary[]>,
+  markRead:      (accountId: string, folder: string, uid: number, read: boolean) => ipcRenderer.invoke('mail:mark-read', accountId, folder, uid, read) as Promise<void>,
+  flagMessage:   (accountId: string, folder: string, uid: number, flagged: boolean) => ipcRenderer.invoke('mail:flag', accountId, folder, uid, flagged) as Promise<void>,
+  deleteMessage: (accountId: string, folder: string, uid: number) => ipcRenderer.invoke('mail:delete', accountId, folder, uid) as Promise<void>,
+  moveMessage:   (accountId: string, folder: string, uid: number, dest: string) => ipcRenderer.invoke('mail:move', accountId, folder, uid, dest) as Promise<void>,
 
   // Send
-  sendMail:      (accountId: string, msg: OutgoingMessage):         Promise<void>
-                                                                                => ipcRenderer.invoke('mail:send', accountId, msg),
+  sendMail:      (accountId: string, msg: OutgoingMessage) => ipcRenderer.invoke('mail:send', accountId, msg) as Promise<void>,
 
   // AI
-  aiChat:        (history: ChatMessage[], userMessage: string, emailContext?: string): Promise<string>
-                                                                                => ipcRenderer.invoke('ai:chat', history, userMessage, emailContext)
+  aiChat:        (history: ChatMessage[], userMessage: string, emailContext?: string) => ipcRenderer.invoke('ai:chat', history, userMessage, emailContext) as Promise<string>
 }
 
 contextBridge.exposeInMainWorld('api', api)
