@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react'
 import type { FullMessage } from '../../main/imap-client'
 
-// DOMPurify runs in the renderer (browser context) — safe to import here
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const DOMPurify = require('dompurify') as { sanitize: (input: string, config?: object) => string }
+import DOMPurify from 'dompurify'
 
 interface Props {
   message:   FullMessage

@@ -2,7 +2,7 @@
   "name": "caldander",
   "version": "1.0.0",
   "description": "Secure mail & calendar client with DAN-mode AI",
-  "main": "dist/main/main.js",
+  "main": "out/main/main.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -49,7 +49,7 @@
       "target": "nsis"
     },
     "files": [
-      "dist/**/*"
+      "out/**/*"
     ]
   }
 }
