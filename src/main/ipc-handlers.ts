@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { loadAccounts, saveAccounts, configExists, MailAccount } from './config'
+import { loadAccounts, saveAccounts, configExists, loadApiKey, saveApiKey, MailAccount } from './config'
 import { IMAPClient, SearchCriteria } from './imap-client'
 import { sendMail, OutgoingMessage } from './smtp-client'
 import { chat, ChatMessage } from './ai'
@@ -55,7 +55,11 @@ export function registerIpcHandlers(): void {
     if (!masterPassphrase) throw new Error('Not unlocked')
     const idx = accounts.findIndex((a) => a.id === account.id)
     if (idx >= 0) {
-      accounts[idx] = account
+      // Preserve existing password if a blank one was submitted (edit without password change)
+      const merged = account.password
+        ? account
+        : { ...account, password: accounts[idx].password }
+      accounts[idx] = merged
     } else {
       accounts.push(account)
     }
@@ -126,9 +130,14 @@ export function registerIpcHandlers(): void {
   })
 
   // ── AI ────────────────────────────────────────────────────────────────────
+  ipcMain.handle('ai:get-api-key', () => loadApiKey())
+
+  ipcMain.handle('ai:save-api-key', (_event, key: string) => saveApiKey(key))
+
   ipcMain.handle('ai:chat',
     async (_event, history: ChatMessage[], userMessage: string, emailContext?: string) => {
-      return chat(history, userMessage, emailContext)
+      const storedKey = loadApiKey() ?? undefined
+      return chat(history, userMessage, emailContext, storedKey)
     }
   )
 }

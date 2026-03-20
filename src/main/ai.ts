@@ -31,23 +31,19 @@ export interface ChatMessage {
   content: string
 }
 
-let client: Anthropic | null = null
-
-function getClient(): Anthropic {
-  if (!client) {
-    const apiKey = process.env['ANTHROPIC_API_KEY']
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY environment variable not set')
-    client = new Anthropic({ apiKey })
-  }
-  return client
+function getClient(apiKey?: string): Anthropic {
+  const key = apiKey ?? process.env['ANTHROPIC_API_KEY']
+  if (!key) throw new Error('No Anthropic API key configured. Please add your API key in Settings → AI / DAN Mode.')
+  return new Anthropic({ apiKey: key })
 }
 
 export async function chat(
   history:      ChatMessage[],
   userMessage:  string,
-  emailContext?: string
+  emailContext?: string,
+  apiKey?:       string
 ): Promise<string> {
-  const c = getClient()
+  const c = getClient(apiKey)
 
   const contextualMessage = emailContext
     ? `[Email context]\n${emailContext}\n\n[User message]\n${userMessage}`

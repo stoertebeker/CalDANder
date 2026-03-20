@@ -60,3 +60,20 @@ export function saveAccounts(accounts: MailAccount[], passphrase: string): void 
 export function configExists(): boolean {
   return existsSync(CONFIG_PATH)
 }
+
+const AI_SETTINGS_PATH = join(CONFIG_DIR, 'ai-settings.json')
+
+export function loadApiKey(): string | null {
+  if (!existsSync(AI_SETTINGS_PATH)) return null
+  try {
+    const raw = readFileSync(AI_SETTINGS_PATH, 'utf8')
+    return (JSON.parse(raw) as { anthropicApiKey?: string }).anthropicApiKey ?? null
+  } catch {
+    return null
+  }
+}
+
+export function saveApiKey(key: string): void {
+  ensureConfigDir()
+  writeFileSync(AI_SETTINGS_PATH, JSON.stringify({ anthropicApiKey: key }), { mode: 0o600 })
+}

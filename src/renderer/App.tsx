@@ -35,6 +35,9 @@ export default function App(): React.ReactElement {
     if (list.length > 0 && !selectedAccountId) {
       setSelectedAccountId(list[0].id)
     }
+    if (list.length === 0) {
+      setView('settings')
+    }
   }
 
   useEffect(() => {

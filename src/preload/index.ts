@@ -41,6 +41,8 @@ const api = {
   sendMail:      (accountId: string, msg: OutgoingMessage) => ipcRenderer.invoke('mail:send', accountId, msg) as Promise<void>,
 
   // AI
+  aiGetApiKey:   ():                                   Promise<string | null>  => ipcRenderer.invoke('ai:get-api-key'),
+  aiSaveApiKey:  (key: string):                        Promise<void>           => ipcRenderer.invoke('ai:save-api-key', key),
   aiChat:        (history: ChatMessage[], userMessage: string, emailContext?: string) => ipcRenderer.invoke('ai:chat', history, userMessage, emailContext) as Promise<string>
 }
 
