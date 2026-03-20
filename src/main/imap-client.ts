@@ -1,4 +1,5 @@
 import { ImapFlow, MailboxLockObject, FetchMessageObject } from 'imapflow'
+import { simpleParser } from 'mailparser'
 import { MailAccount } from './config'
 
 export interface Folder {
@@ -274,16 +275,17 @@ function formatAddress(
 async function parseSource(
   source: Buffer
 ): Promise<{ text: string; html: string; attachments: FullMessage['attachments'] }> {
-  // Lazy parse: split on common MIME boundaries for a lightweight extraction.
-  // For production, replace with 'mailparser' package if needed.
-  const raw = source.toString('utf8', 0, Math.min(source.length, 500_000))
-
-  const textMatch = raw.match(/Content-Type: text\/plain[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?=--|\z)/i)
-  const htmlMatch = raw.match(/Content-Type: text\/html[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?=--|\z)/i)
-
+  const parsed = await simpleParser(source)
+  const attachments = (parsed.attachments ?? [])
+    .filter((a) => a.contentDisposition === 'attachment')
+    .map((a) => ({
+      filename:    a.filename ?? 'attachment',
+      size:        a.size ?? 0,
+      contentType: a.contentType
+    }))
   return {
-    text:        textMatch?.[1]?.trim() ?? '',
-    html:        htmlMatch?.[1]?.trim() ?? '',
-    attachments: []   // full attachment listing requires mailparser
+    text:        parsed.text  ?? '',
+    html:        parsed.html  ?? '',
+    attachments
   }
 }
