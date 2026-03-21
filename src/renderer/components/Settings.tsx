@@ -22,7 +22,7 @@ const EMPTY_ACCOUNT: Omit<MailAccount, 'id'> = {
 }
 
 function randomId(): string {
-  return Math.random().toString(36).slice(2)
+  return crypto.randomUUID()
 }
 
 type Tab = 'accounts' | 'ai'
