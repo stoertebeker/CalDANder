@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import type { FullMessage } from '../../main/imap-client'
-
-import DOMPurify from 'dompurify'
+import { sanitizeHtml } from '../sanitize-html'
 
 interface Props {
   message:   FullMessage
@@ -14,11 +13,7 @@ interface Props {
 export default function MessageView({ message, onReply, onDelete }: Props): React.ReactElement {
   const safeHtml = useMemo(() => {
     if (!message.htmlBody) return ''
-    return DOMPurify.sanitize(message.htmlBody, {
-      FORBID_TAGS:  ['script', 'iframe', 'object', 'embed', 'form'],
-      FORBID_ATTR:  ['onerror', 'onload', 'onclick', 'onmouseover', 'src', 'href', 'action'],
-      ALLOW_DATA_ATTR: false
-    })
+    return sanitizeHtml(message.htmlBody)
   }, [message.htmlBody])
 
   function formatDate(iso: string): string {
