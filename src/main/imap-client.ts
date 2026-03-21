@@ -2,6 +2,7 @@ import { ImapFlow, MailboxLockObject, FetchMessageObject } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import { MailAccount } from './config'
 import { auditInfo, auditError } from './audit-logger'
+import { toUserError } from './mail-errors'
 
 export interface Folder {
   path: string
@@ -84,14 +85,33 @@ export class IMAPClient {
         port: this.account.imapPort,
         reason: (err as Error).message
       })
-      throw err
+      throw toUserError(err, 'imap.connect')
+    }
+  }
+
+  /**
+   * Run an IMAP operation with automatic error translation.
+   * Any error thrown inside `fn` is translated to a user-friendly message.
+   */
+  private async withClient<T>(
+    label: string,
+    fn: (client: ImapFlow) => Promise<T>
+  ): Promise<T> {
+    const client = buildClient(this.account)
+    try {
+      await this.connect(client)
+      return await fn(client)
+    } catch (err) {
+      // connect() already translates its own errors; re-translate only if
+      // the error didn't originate from connect (i.e. post-connect failures)
+      throw toUserError(err, `imap.${label}`)
+    } finally {
+      try { await client.logout() } catch { /* best effort */ }
     }
   }
 
   async listFolders(): Promise<Folder[]> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    try {
+    return this.withClient('listFolders', async (client) => {
       const list = await client.list()
       return list.map((m) => ({
         path:       m.path,
@@ -100,9 +120,7 @@ export class IMAPClient {
         flags:      m.flags,
         specialUse: m.specialUse
       }))
-    } finally {
-      await client.logout()
-    }
+    })
   }
 
   async listMessages(
@@ -110,101 +128,98 @@ export class IMAPClient {
     page: number,
     pageSize: number
   ): Promise<MessageSummary[]> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    let lock: MailboxLockObject | null = null
-    try {
-      lock = await client.getMailboxLock(folder)
-      const status = await client.status(folder, { messages: true })
-      const total  = status.messages ?? 0
-      if (total === 0) return []
+    return this.withClient('listMessages', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        const status = await client.status(folder, { messages: true })
+        const total  = status.messages ?? 0
+        if (total === 0) return []
 
-      const start = Math.max(1, total - (page + 1) * pageSize + 1)
-      const end   = Math.max(1, total - page * pageSize)
-      const range  = `${start}:${end}`
+        const start = Math.max(1, total - (page + 1) * pageSize + 1)
+        const end   = Math.max(1, total - page * pageSize)
+        const range  = `${start}:${end}`
 
-      const results: MessageSummary[] = []
-      for await (const msg of client.fetch(range, {
-        uid:      true,
-        flags:    true,
-        envelope: true,
-        bodyStructure: true
-      })) {
-        results.push(summarise(msg))
+        const results: MessageSummary[] = []
+        for await (const msg of client.fetch(range, {
+          uid:      true,
+          flags:    true,
+          envelope: true,
+          bodyStructure: true
+        })) {
+          results.push(summarise(msg))
+        }
+        return results.reverse()
+      } finally {
+        lock?.release()
       }
-      return results.reverse()
-    } finally {
-      lock?.release()
-      await client.logout()
-    }
+    })
   }
 
   async fetchMessage(folder: string, uid: number): Promise<FullMessage> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    let lock: MailboxLockObject | null = null
-    try {
-      lock = await client.getMailboxLock(folder)
-      const msg = await client.fetchOne(`${uid}`, {
-        uid:           true,
-        flags:         true,
-        envelope:      true,
-        bodyStructure: true,
-        source:        true
-      }, { uid: true })
+    return this.withClient('fetchMessage', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        const msg = await client.fetchOne(`${uid}`, {
+          uid:           true,
+          flags:         true,
+          envelope:      true,
+          bodyStructure: true,
+          source:        true
+        }, { uid: true })
 
-      if (!msg) throw new Error(`Message UID ${uid} not found in ${folder}`)
+        if (!msg) throw new Error(`Nachricht nicht gefunden.`)
 
-      const parsed = await parseSource(msg.source ?? Buffer.alloc(0))
-      return {
-        uid:         msg.uid,
-        subject:     msg.envelope?.subject ?? '(no subject)',
-        from:        formatAddress(msg.envelope?.from),
-        to:          formatAddress(msg.envelope?.to),
-        cc:          formatAddress(msg.envelope?.cc),
-        date:        msg.envelope?.date?.toISOString() ?? '',
-        textBody:    parsed.text,
-        htmlBody:    parsed.html,
-        attachments: parsed.attachments,
-        messageId:   msg.envelope?.messageId ?? '',
-        references:  (msg.envelope as unknown as { references?: string })?.references ?? '',
-        inReplyTo:   (msg.envelope as unknown as { inReplyTo?: string })?.inReplyTo ?? ''
+        const parsed = await parseSource(msg.source ?? Buffer.alloc(0))
+        return {
+          uid:         msg.uid,
+          subject:     msg.envelope?.subject ?? '(no subject)',
+          from:        formatAddress(msg.envelope?.from),
+          to:          formatAddress(msg.envelope?.to),
+          cc:          formatAddress(msg.envelope?.cc),
+          date:        msg.envelope?.date?.toISOString() ?? '',
+          textBody:    parsed.text,
+          htmlBody:    parsed.html,
+          attachments: parsed.attachments,
+          messageId:   msg.envelope?.messageId ?? '',
+          references:  (msg.envelope as unknown as { references?: string })?.references ?? '',
+          inReplyTo:   (msg.envelope as unknown as { inReplyTo?: string })?.inReplyTo ?? ''
+        }
+      } finally {
+        lock?.release()
       }
-    } finally {
-      lock?.release()
-      await client.logout()
-    }
+    })
   }
 
   async search(folder: string, criteria: SearchCriteria): Promise<MessageSummary[]> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    let lock: MailboxLockObject | null = null
-    try {
-      lock = await client.getMailboxLock(folder)
-      const query: Record<string, unknown> = {}
-      if (criteria.seen !== undefined)    query['seen']    = criteria.seen
-      if (criteria.flagged !== undefined) query['flagged'] = criteria.flagged
-      if (criteria.from)    query['from']    = criteria.from
-      if (criteria.subject) query['subject'] = criteria.subject
-      if (criteria.since)   query['since']   = criteria.since
-      if (criteria.before)  query['before']  = criteria.before
+    return this.withClient('search', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        const query: Record<string, unknown> = {}
+        if (criteria.seen !== undefined)    query['seen']    = criteria.seen
+        if (criteria.flagged !== undefined) query['flagged'] = criteria.flagged
+        if (criteria.from)    query['from']    = criteria.from
+        if (criteria.subject) query['subject'] = criteria.subject
+        if (criteria.since)   query['since']   = criteria.since
+        if (criteria.before)  query['before']  = criteria.before
 
-      const uids = await client.search(query, { uid: true })
-      if (uids.length === 0) return []
+        const uids = await client.search(query, { uid: true })
+        if (uids.length === 0) return []
 
-      const range = uids.slice(0, 200).join(',')
-      const results: MessageSummary[] = []
-      for await (const msg of client.fetch(range, {
-        uid: true, flags: true, envelope: true, bodyStructure: true
-      }, { uid: true })) {
-        results.push(summarise(msg))
+        const range = uids.slice(0, 200).join(',')
+        const results: MessageSummary[] = []
+        for await (const msg of client.fetch(range, {
+          uid: true, flags: true, envelope: true, bodyStructure: true
+        }, { uid: true })) {
+          results.push(summarise(msg))
+        }
+        return results.reverse()
+      } finally {
+        lock?.release()
       }
-      return results.reverse()
-    } finally {
-      lock?.release()
-      await client.logout()
-    }
+    })
   }
 
   async markRead(folder: string, uid: number, read: boolean): Promise<void> {
@@ -216,46 +231,43 @@ export class IMAPClient {
   }
 
   async deleteMessage(folder: string, uid: number): Promise<void> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    let lock: MailboxLockObject | null = null
-    try {
-      lock = await client.getMailboxLock(folder)
-      await client.messageDelete(`${uid}`, { uid: true })
-    } finally {
-      lock?.release()
-      await client.logout()
-    }
+    return this.withClient('deleteMessage', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        await client.messageDelete(`${uid}`, { uid: true })
+      } finally {
+        lock?.release()
+      }
+    })
   }
 
   async moveMessage(folder: string, uid: number, dest: string): Promise<void> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    let lock: MailboxLockObject | null = null
-    try {
-      lock = await client.getMailboxLock(folder)
-      await client.messageMove(`${uid}`, dest, { uid: true })
-    } finally {
-      lock?.release()
-      await client.logout()
-    }
+    return this.withClient('moveMessage', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        await client.messageMove(`${uid}`, dest, { uid: true })
+      } finally {
+        lock?.release()
+      }
+    })
   }
 
   private async flagOp(folder: string, uid: number, flag: string, add: boolean): Promise<void> {
-    const client = buildClient(this.account)
-    await this.connect(client)
-    let lock: MailboxLockObject | null = null
-    try {
-      lock = await client.getMailboxLock(folder)
-      if (add) {
-        await client.messageFlagsAdd(`${uid}`, [flag], { uid: true })
-      } else {
-        await client.messageFlagsRemove(`${uid}`, [flag], { uid: true })
+    return this.withClient('flagOp', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        if (add) {
+          await client.messageFlagsAdd(`${uid}`, [flag], { uid: true })
+        } else {
+          await client.messageFlagsRemove(`${uid}`, [flag], { uid: true })
+        }
+      } finally {
+        lock?.release()
       }
-    } finally {
-      lock?.release()
-      await client.logout()
-    }
+    })
   }
 }
 

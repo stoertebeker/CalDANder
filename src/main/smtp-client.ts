@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import { MailAccount } from './config'
 import { auditInfo, auditError } from './audit-logger'
+import { toUserError } from './mail-errors'
 
 export interface OutgoingMessage {
   to:          string[]
@@ -50,7 +51,7 @@ export async function sendMail(account: MailAccount, msg: OutgoingMessage): Prom
     auditInfo('smtp.sent', { host: account.smtpHost, port: account.smtpPort, recipientCount: msg.to.length })
   } catch (err) {
     auditError('smtp.send-failed', { host: account.smtpHost, port: account.smtpPort, reason: (err as Error).message })
-    throw err
+    throw toUserError(err, 'smtp.send')
   } finally {
     transport.close()
   }

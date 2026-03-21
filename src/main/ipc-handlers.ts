@@ -56,7 +56,7 @@ function resetLockTimer(): void {
 
 function getClient(accountId: string): IMAPClient {
   const account = accounts.find((a) => a.id === accountId)
-  if (!account) throw new Error(`Account ${accountId} not found`)
+  if (!account) throw new Error('Konto nicht gefunden.')
   if (!imapClients.has(accountId)) {
     imapClients.set(accountId, new IMAPClient(account))
   }
@@ -206,14 +206,10 @@ export function registerIpcHandlers(): void {
     resetLockTimer()
     const validId = validateAccountId(accountId)
     const account = accounts.find((a) => a.id === validId)
-    if (!account) throw new Error(`Account ${validId} not found`)
-    try {
-      await sendMail(account, msg)
-      auditInfo('mail.sent', { accountId: validId, recipientCount: msg.to.length })
-    } catch (err) {
-      auditError('mail.sent', { accountId: validId, success: false, reason: (err as Error).message })
-      throw err
-    }
+    if (!account) throw new Error('Konto nicht gefunden.')
+    // sendMail already translates errors to user-friendly messages
+    await sendMail(account, msg)
+    auditInfo('mail.sent', { accountId: validId, recipientCount: msg.to.length })
   })
 
   // ── AI ────────────────────────────────────────────────────────────────────
