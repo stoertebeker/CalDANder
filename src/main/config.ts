@@ -63,17 +63,27 @@ export function configExists(): boolean {
 
 const AI_SETTINGS_PATH = join(CONFIG_DIR, 'ai-settings.json')
 
-export function loadApiKey(): string | null {
+export function loadApiKey(passphrase: string): string | null {
   if (!existsSync(AI_SETTINGS_PATH)) return null
   try {
     const raw = readFileSync(AI_SETTINGS_PATH, 'utf8')
-    return (JSON.parse(raw) as { anthropicApiKey?: string }).anthropicApiKey ?? null
+    const file = JSON.parse(raw) as { anthropicApiKey?: EncryptedBlob | string }
+    if (!file.anthropicApiKey) return null
+
+    // Handle encrypted blob (new format)
+    if (typeof file.anthropicApiKey === 'object' && 'salt' in file.anthropicApiKey) {
+      return decrypt(file.anthropicApiKey, passphrase)
+    }
+
+    // Legacy plaintext format — read it but it will be re-encrypted on next save
+    return file.anthropicApiKey as string
   } catch {
     return null
   }
 }
 
-export function saveApiKey(key: string): void {
+export function saveApiKey(key: string, passphrase: string): void {
   ensureConfigDir()
-  writeFileSync(AI_SETTINGS_PATH, JSON.stringify({ anthropicApiKey: key }), { mode: 0o600 })
+  const encrypted = encrypt(key, passphrase)
+  writeFileSync(AI_SETTINGS_PATH, JSON.stringify({ anthropicApiKey: encrypted }, null, 2), { mode: 0o600 })
 }

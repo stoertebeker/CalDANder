@@ -130,13 +130,20 @@ export function registerIpcHandlers(): void {
   })
 
   // ── AI ────────────────────────────────────────────────────────────────────
-  ipcMain.handle('ai:get-api-key', () => loadApiKey())
+  ipcMain.handle('ai:get-api-key', () => {
+    if (!masterPassphrase) throw new Error('Not unlocked')
+    return loadApiKey(masterPassphrase)
+  })
 
-  ipcMain.handle('ai:save-api-key', (_event, key: string) => saveApiKey(key))
+  ipcMain.handle('ai:save-api-key', (_event, key: string) => {
+    if (!masterPassphrase) throw new Error('Not unlocked')
+    saveApiKey(key, masterPassphrase)
+  })
 
   ipcMain.handle('ai:chat',
     async (_event, history: ChatMessage[], userMessage: string, emailContext?: string) => {
-      const storedKey = loadApiKey() ?? undefined
+      if (!masterPassphrase) throw new Error('Not unlocked')
+      const storedKey = loadApiKey(masterPassphrase) ?? undefined
       return chat(history, userMessage, emailContext, storedKey)
     }
   )
