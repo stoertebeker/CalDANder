@@ -31,9 +31,8 @@ export interface ChatMessage {
 }
 
 function getClient(apiKey?: string): Anthropic {
-  const key = apiKey ?? process.env['ANTHROPIC_API_KEY']
-  if (!key) throw new Error('No Anthropic API key configured. Please add your API key in Settings → AI.')
-  return new Anthropic({ apiKey: key })
+  if (!apiKey) throw new Error('No Anthropic API key configured. Please add your API key in Settings → AI.')
+  return new Anthropic({ apiKey })
 }
 
 export async function chat(

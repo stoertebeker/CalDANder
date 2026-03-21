@@ -176,8 +176,27 @@ describe('chat – response handling', () => {
 })
 
 describe('chat – error handling', () => {
-  it('throws when no API key is provided and env is unset', async () => {
-    delete process.env['ANTHROPIC_API_KEY']
+  it('throws when no API key is provided', async () => {
     await expect(chat([], 'Hi')).rejects.toThrow('No Anthropic API key configured')
+  })
+
+  it('throws when API key is undefined even if env var is set', async () => {
+    process.env['ANTHROPIC_API_KEY'] = 'env-key-should-be-ignored'
+    try {
+      await expect(chat([], 'Hi')).rejects.toThrow('No Anthropic API key configured')
+    } finally {
+      delete process.env['ANTHROPIC_API_KEY']
+    }
+  })
+
+  it('does not read ANTHROPIC_API_KEY from process.env', async () => {
+    process.env['ANTHROPIC_API_KEY'] = 'env-key-should-be-ignored'
+    try {
+      await expect(chat([], 'Hi', undefined, undefined)).rejects.toThrow(
+        'No Anthropic API key configured'
+      )
+    } finally {
+      delete process.env['ANTHROPIC_API_KEY']
+    }
   })
 })
