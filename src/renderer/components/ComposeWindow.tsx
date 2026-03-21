@@ -19,10 +19,25 @@ export default function ComposeWindow({ accountId, replyTo, onClose }: Props): R
     e.preventDefault()
     setSending(true)
     setError('')
+
+    const toAddresses = parseAndValidateEmails(to)
+    if (toAddresses.length === 0) {
+      setError('Please enter at least one valid email address')
+      setSending(false)
+      return
+    }
+
+    const ccAddresses = cc ? parseAndValidateEmails(cc) : undefined
+    if (cc && ccAddresses && ccAddresses.length === 0) {
+      setError('CC contains no valid email addresses')
+      setSending(false)
+      return
+    }
+
     try {
       await window.api.sendMail(accountId, {
-        to:       to.split(',').map((s) => s.trim()).filter(Boolean),
-        cc:       cc ? cc.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
+        to:       toAddresses,
+        cc:       ccAddresses,
         subject,
         textBody: body,
         inReplyTo:  replyTo?.messageId,
@@ -92,4 +107,15 @@ export default function ComposeWindow({ accountId, replyTo, onClose }: Props): R
 function extractEmail(addr: string): string {
   const match = addr.match(/<([^>]+)>/)
   return match ? match[1] : addr.trim()
+}
+
+/** Validates that a string is a well-formed email address and contains no SMTP-injection characters. */
+export function isValidEmail(email: string): boolean {
+  if (/[\r\n]/.test(email)) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+/** Splits a comma-separated address string and returns only valid email addresses. */
+export function parseAndValidateEmails(raw: string): string[] {
+  return raw.split(',').map((s) => s.trim()).filter(Boolean).filter(isValidEmail)
 }
