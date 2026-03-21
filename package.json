@@ -2,6 +2,7 @@
   "name": "caldander",
   "version": "1.0.0",
   "description": "Secure mail & calendar client with DAN-mode AI",
+  "author": "Norbert Schramm <schramm.norbert@mailbox.org>",
   "main": "out/main/main.js",
   "scripts": {
     "dev": "electron-vite dev",
