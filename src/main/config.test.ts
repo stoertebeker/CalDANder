@@ -2,10 +2,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { encrypt, decrypt, type EncryptedBlob } from './crypto'
+import { encrypt, decrypt, PBKDF2_ITERATIONS, type EncryptedBlob } from './crypto'
 
 // Instead of mocking os.homedir (which config.ts evaluates at import time),
 // we test the crypto layer directly and verify the integration contract.
+
+describe('PBKDF2 iteration count', () => {
+  it('meets NIST SP 800-132 / OWASP 2024 minimum of 600 000', () => {
+    expect(PBKDF2_ITERATIONS).toBeGreaterThanOrEqual(600_000)
+  })
+})
 
 describe('API key encryption (crypto layer)', () => {
   const PASSPHRASE = 'test-master-passphrase'

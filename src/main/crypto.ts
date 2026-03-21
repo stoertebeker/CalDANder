@@ -4,7 +4,9 @@
  */
 import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from 'crypto'
 
-const PBKDF2_ITERATIONS = 310_000
+// NIST SP 800-132 & OWASP 2024: minimum 600 000 iterations for PBKDF2-HMAC-SHA256.
+// Increased from 310 000 (2023 floor) to meet current guidance.
+export const PBKDF2_ITERATIONS = 600_000
 const PBKDF2_KEYLEN = 32   // 256-bit key
 const PBKDF2_DIGEST = 'sha256'
 const SALT_BYTES = 32
