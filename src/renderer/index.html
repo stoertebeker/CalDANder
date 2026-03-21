@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Block all remote resources by default; inline styles and scripts from same origin only -->
+  <!-- Strict CSP: block all remote resources, no inline styles, no plugins/frames/forms -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self';
+    content="default-src 'none';
              script-src 'self';
-             style-src 'self' 'unsafe-inline';
+             style-src 'self';
              img-src 'self' data: blob:;
-             connect-src 'none';" />
+             connect-src 'none';
+             font-src 'self';
+             object-src 'none';
+             frame-src 'none';
+             base-uri 'self';
+             form-action 'none';" />
   <title>CalDANder</title>
 </head>
 <body class="bg-gray-900 text-gray-100 h-screen overflow-hidden">
