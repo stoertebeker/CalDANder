@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, session, shell } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers, lockApp } from './ipc-handlers'
 
@@ -34,6 +34,17 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  // Add security headers to all responses (defense-in-depth)
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'X-Content-Type-Options': ['nosniff'],
+        'X-Frame-Options': ['DENY']
+      }
+    })
+  })
+
   registerIpcHandlers()
   createWindow()
 

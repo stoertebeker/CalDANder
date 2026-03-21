@@ -75,3 +75,11 @@ describe('Content Security Policy', () => {
     expect(imgSrc).toContain('blob:')
   })
 })
+
+describe('X-Content-Type-Options header', () => {
+  it('sets X-Content-Type-Options to nosniff via meta tag', () => {
+    const match = html.match(/X-Content-Type-Options"[\s\S]*?content="([^"]*)"/)
+    expect(match).not.toBeNull()
+    expect(match![1]).toBe('nosniff')
+  })
+})
