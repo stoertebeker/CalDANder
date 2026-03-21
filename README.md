@@ -1,10 +1,10 @@
 # CalDANder
 
-> Secure desktop email client with an integrated AI assistant (DAN mode) powered by Claude.
+> **calDANder** = a calendar + email client built in **DAN mode** (Vibe Coding).
 >
-> **Proof of Concept** — This is a fully functional POC demonstrating what's possible with **Vibe Coding** — letting Claude autonomously design and implement a complete, production-ready application with security hardening, comprehensive testing, and professional error handling — all in one extended session.
+> This is a fully functional **Proof of Concept** demonstrating what's possible when Claude autonomously designs and implements a complete, production-ready application — with security hardening, comprehensive testing, professional error handling, and multi-platform CI/CD — all in one extended development session.
 
-CalDANder is an [Electron](https://www.electronjs.org/) + React application that lets you manage multiple IMAP/SMTP accounts from one dark-themed interface. All credentials are encrypted at rest with AES-256-GCM. The built-in **DAN Mode** panel connects to the Anthropic Claude API to summarise emails, draft replies, and extract calendar events.
+CalDANder is an [Electron](https://www.electronjs.org/) + React application that lets you manage multiple IMAP/SMTP accounts from one dark-themed interface. All credentials are encrypted at rest with AES-256-GCM. An integrated Claude AI panel helps you summarise emails, draft replies, and extract calendar events.
 
 ---
 
@@ -20,7 +20,7 @@ This project was built using **Vibe Coding** — an autonomous development appro
 - **Email attachment download/upload** with validation
 - **Structured audit logging** for compliance
 
-The "DAN" in CalDANder originally stood for a jailbreak prompt, which was **removed** in favor of a responsible, task-focused system prompt. This demonstrates how even AI applications can be hardened through proper security practices.
+**Name origin:** "calDANder" = **cal**endar app built in **DAN** mode (Vibe Coding). The application itself is the proof that autonomous Claude development works — no jailbreaks, no "do anything now" prompts needed. The built-in Claude integration (originally called "DAN Mode") was later **renamed and hardened** to use responsible prompting, demonstrating how AI assistants can be properly integrated into applications.
 
 ---
 
@@ -31,7 +31,7 @@ The "DAN" in CalDANder originally stood for a jailbreak prompt, which was **remo
 | **Multi-account email** | IMAP folder navigation, search, reply, compose, flag, move, delete |
 | **Encrypted storage** | AES-256-GCM + PBKDF2 — credentials never touch disk in plaintext |
 | **Strict TLS** | Implicit TLS and STARTTLS; self-signed certificates rejected |
-| **DAN Mode AI** | Summarise, draft, reply, extract calendar events — powered by Claude |
+| **AI Integration** | Summarise, draft, reply, extract calendar events — powered by Claude API |
 | **Cross-platform** | Linux (.deb), macOS (DMG), Windows (NSIS + Portable) |
 
 ---
@@ -54,9 +54,9 @@ npm run dev
 
 On first launch you will be prompted to set a **master passphrase**. This protects all stored credentials. The Settings screen opens automatically so you can add your first mail account.
 
-### Configure AI / DAN Mode
+### Configure AI Assistant
 
-Open **Settings → AI / DAN** and paste your [Anthropic API key](https://console.anthropic.com/). The key is stored locally at `~/.caldander/ai-settings.json` (permissions `600`) and never leaves your machine except when calling the Claude API.
+Open **Settings → AI** and paste your [Anthropic API key](https://console.anthropic.com/). The key is stored locally at `~/.caldander/ai-settings.json` (permissions `600`) and never leaves your machine except when calling the Claude API.
 
 Alternatively, set the environment variable before starting:
 
