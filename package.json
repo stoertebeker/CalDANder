@@ -56,7 +56,7 @@
       "target": "nsis"
     },
     "linux": {
-      "target": "AppImage",
+      "target": "deb",
       "category": "Office"
     },
     "files": [
