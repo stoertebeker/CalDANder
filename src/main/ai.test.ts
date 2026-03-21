@@ -135,6 +135,17 @@ describe('chat – API call parameters', () => {
     expect(call.thinking).toEqual({ type: 'enabled', budget_tokens: 2048 })
     expect(call.system).toContain('CalDANder')
   })
+
+  it('does not use DAN (Do Anything Now) jailbreak framing in system prompt', async () => {
+    await chat([], 'Hi', undefined, API_KEY)
+
+    const call = mockCreate.mock.calls[0][0]
+    const system = call.system.toLowerCase()
+    expect(system).not.toContain('do anything now')
+    expect(system).not.toContain('dan mode')
+    expect(system).not.toContain('unrestricted')
+    expect(system).not.toContain('dan (')
+  })
 })
 
 describe('chat – response handling', () => {
