@@ -40,12 +40,14 @@ export default function Settings({ accounts, onSave, onCancel }: Props): React.R
 
   React.useEffect(() => {
     window.api.aiGetApiKey().then((k) => { if (k) setApiKey(k) })
+    return () => { setApiKey('') }
   }, [])
 
   async function saveAiSettings(): Promise<void> {
     setAiSaving(true)
     setAiSaved(false)
     await window.api.aiSaveApiKey(apiKey)
+    setApiKey('')
     setAiSaving(false)
     setAiSaved(true)
   }
@@ -173,6 +175,8 @@ export default function Settings({ accounts, onSave, onCancel }: Props): React.R
                   onChange={(e) => { setApiKey(e.target.value); setAiSaved(false) }}
                   placeholder="sk-ant-..."
                   autoComplete="off"
+                  spellCheck={false}
+                  data-lpignore="true"
                 />
               </Field>
               <p className="text-xs text-gray-500">
