@@ -58,7 +58,10 @@ function buildClient(account: MailAccount): ImapFlow {
     tls: {
       rejectUnauthorized: true   // strict cert verification — never disabled
     },
-    logger: false
+    logger: false,
+    connectionTimeout: 10_000,   // 10 s to establish TCP connection
+    greetingTimeout:    5_000,   // 5 s for server greeting after connect
+    socketTimeout:     30_000    // 30 s for socket inactivity
   })
 }
 
