@@ -1,8 +1,26 @@
 # CalDANder
 
 > Secure desktop email client with an integrated AI assistant (DAN mode) powered by Claude.
+>
+> **Proof of Concept** — This is a fully functional POC demonstrating what's possible with **Vibe Coding** — letting Claude autonomously design and implement a complete, production-ready application with security hardening, comprehensive testing, and professional error handling — all in one extended session.
 
 CalDANder is an [Electron](https://www.electronjs.org/) + React application that lets you manage multiple IMAP/SMTP accounts from one dark-themed interface. All credentials are encrypted at rest with AES-256-GCM. The built-in **DAN Mode** panel connects to the Anthropic Claude API to summarise emails, draft replies, and extract calendar events.
+
+---
+
+## About this POC: Vibe Coding with Claude
+
+This project was built using **Vibe Coding** — an autonomous development approach where Claude takes high-level requirements and builds a complete, production-ready application with:
+
+- **18 security issues** identified and fixed (from critical prompt injection to infrastructure hardening)
+- **241 unit tests** covering functionality, security, and edge cases
+- **Professional error handling** with user-friendly German error messages
+- **Full type safety** with TypeScript
+- **Multi-platform builds** (macOS, Windows, Linux) via GitHub Actions
+- **Email attachment download/upload** with validation
+- **Structured audit logging** for compliance
+
+The "DAN" in CalDANder originally stood for a jailbreak prompt, which was **removed** in favor of a responsible, task-focused system prompt. This demonstrates how even AI applications can be hardened through proper security practices.
 
 ---
 
@@ -14,7 +32,7 @@ CalDANder is an [Electron](https://www.electronjs.org/) + React application that
 | **Encrypted storage** | AES-256-GCM + PBKDF2 — credentials never touch disk in plaintext |
 | **Strict TLS** | Implicit TLS and STARTTLS; self-signed certificates rejected |
 | **DAN Mode AI** | Summarise, draft, reply, extract calendar events — powered by Claude |
-| **Cross-platform** | Linux (AppImage), macOS (DMG), Windows (NSIS) |
+| **Cross-platform** | Linux (.deb), macOS (DMG), Windows (NSIS + Portable) |
 
 ---
 
@@ -52,10 +70,12 @@ ANTHROPIC_API_KEY=sk-ant-... npm run dev
 
 ```bash
 # All platforms (from their respective OS)
-npm run build:linux   # → release/CalDANder-x.x.x.AppImage
+npm run build:linux   # → release/caldander_x.x.x_amd64.deb
 npm run build:mac     # → release/CalDANder-x.x.x.dmg
-npm run build:win     # → release/CalDANder-x.x.x Setup.exe
+npm run build:win     # → release/CalDANder Setup x.x.x.exe
 ```
+
+Or use the CI/CD pipeline — GitHub Actions automatically builds all three platforms on every push.
 
 ---
 
