@@ -57,3 +57,31 @@ describe('SMTP client timeout configuration', () => {
     expect(capturedConfig!.socketTimeout).toBe(30_000)
   })
 })
+
+describe('SMTP client with attachments', () => {
+  it('sends message with attachments', async () => {
+    const messageWithAttachments = {
+      ...fakeMessage,
+      attachments: [
+        { path: '/tmp/file1.txt' },
+        { path: '/tmp/file2.pdf' }
+      ]
+    }
+    await sendMail(fakeAccount, messageWithAttachments)
+    expect(capturedConfig).not.toBeNull()
+  })
+
+  it('sends message without attachments', async () => {
+    await sendMail(fakeAccount, fakeMessage)
+    expect(capturedConfig).not.toBeNull()
+  })
+
+  it('handles empty attachments array', async () => {
+    const messageWithEmptyAttachments = {
+      ...fakeMessage,
+      attachments: []
+    }
+    await sendMail(fakeAccount, messageWithEmptyAttachments)
+    expect(capturedConfig).not.toBeNull()
+  })
+})

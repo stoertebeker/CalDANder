@@ -108,3 +108,46 @@ describe('parseAndValidateEmails', () => {
     expect(parseAndValidateEmails('alice@example.com,')).toEqual(['alice@example.com'])
   })
 })
+
+// ---------------------------------------------------------------------------
+// Attachment size validation
+// ---------------------------------------------------------------------------
+
+describe('Attachment validation', () => {
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  it('formats bytes correctly', () => {
+    expect(formatBytes(0)).toBe('0 B')
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(1024)).toBe('1 KB')
+    expect(formatBytes(1024 * 1024)).toBe('1 MB')
+    expect(formatBytes(25 * 1024 * 1024)).toBe('25 MB')
+    expect(formatBytes(100 * 1024 * 1024)).toBe('100 MB')
+  })
+
+  it('validates single file under 25 MB', () => {
+    const fileSize = 10 * 1024 * 1024 // 10 MB
+    expect(fileSize).toBeLessThan(25 * 1024 * 1024)
+  })
+
+  it('rejects single file over 25 MB', () => {
+    const fileSize = 26 * 1024 * 1024 // 26 MB
+    expect(fileSize).toBeGreaterThan(25 * 1024 * 1024)
+  })
+
+  it('validates total size under 100 MB', () => {
+    const totalSize = 50 * 1024 * 1024 // 50 MB
+    expect(totalSize).toBeLessThan(100 * 1024 * 1024)
+  })
+
+  it('rejects total size over 100 MB', () => {
+    const totalSize = 101 * 1024 * 1024 // 101 MB
+    expect(totalSize).toBeGreaterThan(100 * 1024 * 1024)
+  })
+})

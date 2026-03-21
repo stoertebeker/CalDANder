@@ -7,13 +7,53 @@ interface Props {
   onClose:   () => void
 }
 
+interface Attachment {
+  path: string
+  name: string
+  size: number
+}
+
 export default function ComposeWindow({ accountId, replyTo, onClose }: Props): React.ReactElement {
-  const [to,      setTo]      = useState(replyTo ? extractEmail(replyTo.from) : '')
-  const [cc,      setCc]      = useState('')
-  const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject.replace(/^Re:\s*/i, '')}` : '')
-  const [body,    setBody]    = useState(replyTo ? `\n\n--- Original message ---\n${replyTo.textBody}` : '')
-  const [sending, setSending] = useState(false)
-  const [error,   setError]   = useState('')
+  const [to,          setTo]          = useState(replyTo ? extractEmail(replyTo.from) : '')
+  const [cc,          setCc]          = useState('')
+  const [subject,     setSubject]     = useState(replyTo ? `Re: ${replyTo.subject.replace(/^Re:\s*/i, '')}` : '')
+  const [body,        setBody]        = useState(replyTo ? `\n\n--- Original message ---\n${replyTo.textBody}` : '')
+  const [sending,     setSending]     = useState(false)
+  const [error,       setError]       = useState('')
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+
+  async function handleAddAttachment(): Promise<void> {
+    const result = await window.api.openFileDialog()
+    if (!result.canceled && result.filePaths) {
+      setError('')
+      const newAttachments: Attachment[] = []
+      let totalSize = attachments.reduce((sum, a) => sum + a.size, 0)
+
+      for (const path of result.filePaths) {
+        const fileSize = result.fileSizes?.[result.filePaths.indexOf(path)] ?? 0
+        const fileName = path.split(/[\\/]/).pop() ?? 'unknown'
+
+        if (fileSize > 25 * 1024 * 1024) {
+          setError(`Datei "${fileName}" überschreitet 25 MB Grenzwert`)
+          return
+        }
+
+        totalSize += fileSize
+        if (totalSize > 100 * 1024 * 1024) {
+          setError('Gesamtgröße aller Anhänge überschreitet 100 MB Grenzwert')
+          return
+        }
+
+        newAttachments.push({ path, name: fileName, size: fileSize })
+      }
+
+      setAttachments([...attachments, ...newAttachments])
+    }
+  }
+
+  function handleRemoveAttachment(index: number): void {
+    setAttachments(attachments.filter((_, i) => i !== index))
+  }
 
   async function send(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -36,12 +76,13 @@ export default function ComposeWindow({ accountId, replyTo, onClose }: Props): R
 
     try {
       await window.api.sendMail(accountId, {
-        to:       toAddresses,
-        cc:       ccAddresses,
+        to:          toAddresses,
+        cc:          ccAddresses,
         subject,
-        textBody: body,
-        inReplyTo:  replyTo?.messageId,
-        references: replyTo?.references
+        textBody:    body,
+        attachments: attachments.length > 0 ? attachments.map(a => ({ path: a.path })) : undefined,
+        inReplyTo:   replyTo?.messageId,
+        references:  replyTo?.references
           ? `${replyTo.references} ${replyTo.messageId}`
           : replyTo?.messageId
       })
@@ -88,6 +129,36 @@ export default function ComposeWindow({ accountId, replyTo, onClose }: Props): R
             placeholder="Write your message…"
           />
 
+          {/* Attachments section */}
+          <div className="px-5 py-3 border-t border-gray-700 bg-gray-750 space-y-2">
+            {attachments.length > 0 && (
+              <div className="space-y-1">
+                {attachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-gray-700 px-3 py-2 rounded text-xs">
+                    <span className="text-gray-200 truncate">
+                      {att.name} ({formatBytes(att.size)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(idx)}
+                      className="text-red-400 hover:text-red-300 ml-2 flex-shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleAddAttachment}
+              disabled={sending}
+              className="text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 px-3 py-1.5 rounded transition-colors"
+            >
+              + Datei anhängen
+            </button>
+          </div>
+
           <div className="flex items-center justify-between px-5 py-3 border-t border-gray-700">
             {error ? <span className="text-red-400 text-xs">{error}</span> : <span />}
             <button
@@ -107,6 +178,14 @@ export default function ComposeWindow({ accountId, replyTo, onClose }: Props): R
 function extractEmail(addr: string): string {
   const match = addr.match(/<([^>]+)>/)
   return match ? match[1] : addr.trim()
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
 /** Validates that a string is a well-formed email address and contains no SMTP-injection characters. */

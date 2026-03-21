@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow, dialog } from 'electron'
-import { writeFile } from 'node:fs/promises'
+import { writeFile, stat } from 'node:fs/promises'
 import { loadAccounts, saveAccounts, configExists, loadApiKey, saveApiKey, MailAccount } from './config'
 import { IMAPClient, SearchCriteria } from './imap-client'
 import { sendMail, OutgoingMessage } from './smtp-client'
@@ -228,6 +228,36 @@ export function registerIpcHandlers(): void {
       auditInfo('mail.moved', { accountId: validId, folder, uid: validUid, destination: validDest })
     }
   )
+
+  // ── File dialog ───────────────────────────────────────────────────────────
+  ipcMain.handle('file:open-dialog', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'All Files', extensions: ['*'] }]
+    })
+
+    if (result.canceled) {
+      return { canceled: true }
+    }
+
+    // Validate file sizes on main thread
+    const fileSizes: number[] = []
+    for (const filePath of result.filePaths) {
+      try {
+        const stats = await stat(filePath)
+        fileSizes.push(stats.size)
+      } catch (err) {
+        auditError('file.open-dialog', {
+          reason: `Failed to stat file: ${(err as Error).message}`,
+          filePath
+        })
+        throw new Error(`Fehler beim Lesen der Dateigröße: ${(err as Error).message}`)
+      }
+    }
+
+    auditInfo('file.open-dialog', { fileCount: result.filePaths.length })
+    return { canceled: false, filePaths: result.filePaths, fileSizes }
+  })
 
   // ── Send ──────────────────────────────────────────────────────────────────
   ipcMain.handle('mail:send', async (_event, accountId: string, msg: OutgoingMessage) => {

@@ -14,6 +14,12 @@ export interface UnlockResult {
   error?: string
 }
 
+export interface OpenFileDialogResult {
+  canceled: boolean
+  filePaths?: string[]
+  fileSizes?: number[]
+}
+
 const api = {
   // Auth
   configExists:  ():                                   Promise<boolean>        => ipcRenderer.invoke('mail:config-exists'),
@@ -45,6 +51,7 @@ const api = {
   // Attachments
   downloadAttachment: (accountId: string, folder: string, uid: number, attachmentIndex: number) =>
     ipcRenderer.invoke('mail:download-attachment', accountId, folder, uid, attachmentIndex) as Promise<{ saved: boolean; filePath?: string }>,
+  openFileDialog: (): Promise<OpenFileDialogResult> => ipcRenderer.invoke('file:open-dialog'),
 
   // Send
   sendMail:      (accountId: string, msg: OutgoingMessage) => ipcRenderer.invoke('mail:send', accountId, msg) as Promise<void>,
