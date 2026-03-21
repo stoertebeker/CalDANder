@@ -1,4 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
+import {
+  validatePassphrase,
+  strengthLabel,
+  strengthColor,
+} from '../passphrase-strength'
 
 interface Props {
   onUnlocked: () => void
@@ -10,6 +15,12 @@ export default function Unlock({ onUnlocked }: Props): React.ReactElement {
   const [loading,    setLoading]    = useState(false)
   const [isNew,      setIsNew]      = useState<boolean | null>(null)
   const [confirm,    setConfirm]    = useState('')
+
+  // Live strength feedback while creating a new passphrase
+  const strength = useMemo(
+    () => (isNew && passphrase.length > 0 ? validatePassphrase(passphrase) : null),
+    [isNew, passphrase],
+  )
 
   // On mount, check if config exists to decide new vs unlock
   React.useEffect(() => {
@@ -23,9 +34,19 @@ export default function Unlock({ onUnlocked }: Props): React.ReactElement {
       setError('Passphrases do not match')
       return
     }
-    if (passphrase.length < 8) {
-      setError('Passphrase must be at least 8 characters')
-      return
+
+    // Strong validation only when creating a new passphrase
+    if (isNew) {
+      const validation = validatePassphrase(passphrase)
+      if (!validation.ok) {
+        const msg = validation.error ?? 'Passphrase is too weak'
+        const hint =
+          validation.suggestions.length > 0
+            ? ` ${validation.suggestions[0]}`
+            : ''
+        setError(`${msg}.${hint}`)
+        return
+      }
     }
     setLoading(true)
     try {
@@ -57,7 +78,7 @@ export default function Unlock({ onUnlocked }: Props): React.ReactElement {
         <h1 className="text-2xl font-bold text-brand-400 mb-2">CalDANder</h1>
         <p className="text-gray-400 text-sm mb-6">
           {isNew
-            ? 'Create a master passphrase to encrypt your credentials.'
+            ? 'Create a master passphrase to encrypt your credentials. Use 4+ random words for best security.'
             : 'Enter your master passphrase to unlock your accounts.'}
         </p>
 
@@ -74,6 +95,27 @@ export default function Unlock({ onUnlocked }: Props): React.ReactElement {
               autoFocus
               required
             />
+            {strength && (
+              <div className="mt-1">
+                <div className="flex gap-1 mb-1">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className={`h-1 flex-1 rounded-full ${
+                        i < strength.score
+                          ? strength.score < 3
+                            ? 'bg-yellow-400'
+                            : 'bg-green-400'
+                          : 'bg-gray-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className={`text-xs ${strengthColor(strength.score)}`}>
+                  {strengthLabel(strength.score)}
+                </p>
+              </div>
+            )}
           </div>
 
           {isNew && (
