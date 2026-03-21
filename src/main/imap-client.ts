@@ -192,6 +192,29 @@ export class IMAPClient {
     })
   }
 
+  async downloadAttachment(
+    folder: string,
+    uid: number,
+    attachmentIndex: number
+  ): Promise<AttachmentData> {
+    return this.withClient('downloadAttachment', async (client) => {
+      let lock: MailboxLockObject | null = null
+      try {
+        lock = await client.getMailboxLock(folder)
+        const msg = await client.fetchOne(`${uid}`, {
+          uid:    true,
+          source: true
+        }, { uid: true })
+
+        if (!msg) throw new Error('Nachricht nicht gefunden.')
+
+        return extractAttachment(msg.source ?? Buffer.alloc(0), attachmentIndex)
+      } finally {
+        lock?.release()
+      }
+    })
+  }
+
   async search(folder: string, criteria: SearchCriteria): Promise<MessageSummary[]> {
     return this.withClient('search', async (client) => {
       let lock: MailboxLockObject | null = null
@@ -303,6 +326,12 @@ function formatAddress(
   return addrs.map((a) => (a.name ? `${a.name} <${a.address ?? ''}>` : (a.address ?? ''))).join(', ')
 }
 
+export interface AttachmentData {
+  filename: string
+  contentType: string
+  content: Buffer
+}
+
 async function parseSource(
   source: Buffer
 ): Promise<{ text: string; html: string; attachments: FullMessage['attachments'] }> {
@@ -318,5 +347,25 @@ async function parseSource(
     text:        parsed.text  ?? '',
     html:        parsed.html  ?? '',
     attachments
+  }
+}
+
+async function extractAttachment(
+  source: Buffer,
+  attachmentIndex: number
+): Promise<AttachmentData> {
+  const parsed = await simpleParser(source)
+  const attachments = (parsed.attachments ?? [])
+    .filter((a) => a.contentDisposition === 'attachment')
+
+  if (attachmentIndex < 0 || attachmentIndex >= attachments.length) {
+    throw new Error('Anhang nicht gefunden.')
+  }
+
+  const att = attachments[attachmentIndex]
+  return {
+    filename:    att.filename ?? 'attachment',
+    contentType: att.contentType,
+    content:     att.content
   }
 }

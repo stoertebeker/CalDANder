@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import type { FullMessage } from '../../main/imap-client'
 import { sanitizeHtml } from '../sanitize-html'
 
@@ -10,7 +10,7 @@ interface Props {
   onDelete:  () => void
 }
 
-export default function MessageView({ message, onReply, onDelete }: Props): React.ReactElement {
+export default function MessageView({ message, accountId, folder, onReply, onDelete }: Props): React.ReactElement {
   const safeHtml = useMemo(() => {
     if (!message.htmlBody) return ''
     return sanitizeHtml(message.htmlBody)
@@ -19,6 +19,14 @@ export default function MessageView({ message, onReply, onDelete }: Props): Reac
   function formatDate(iso: string): string {
     return iso ? new Date(iso).toLocaleString() : ''
   }
+
+  const handleDownloadAttachment = useCallback(async (attachmentIndex: number) => {
+    try {
+      await window.api.downloadAttachment(accountId, folder, message.uid, attachmentIndex)
+    } catch (err) {
+      console.error('Failed to download attachment:', err)
+    }
+  }, [accountId, folder, message.uid])
 
   const body = safeHtml || message.textBody
 
@@ -71,11 +79,17 @@ export default function MessageView({ message, onReply, onDelete }: Props): Reac
       {message.attachments.length > 0 && (
         <div className="px-6 py-3 border-t border-gray-700 flex gap-3 flex-wrap">
           {message.attachments.map((att, i) => (
-            <div key={i} className="flex items-center gap-1.5 bg-gray-700 rounded px-3 py-1.5 text-xs text-gray-300">
+            <button
+              key={i}
+              onClick={() => handleDownloadAttachment(i)}
+              className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-600 rounded px-3 py-1.5 text-xs text-gray-300 transition-colors cursor-pointer"
+              title={`Download ${att.filename}`}
+            >
               <span>📎</span>
               <span>{att.filename}</span>
               <span className="text-gray-500">({Math.round(att.size / 1024)} KB)</span>
-            </div>
+              <span className="ml-1 text-brand-400">⬇</span>
+            </button>
           ))}
         </div>
       )}

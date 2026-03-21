@@ -136,6 +136,17 @@ export function validateSearchCriteria(criteria: unknown): SearchCriteria {
   return result
 }
 
+// ── Attachment index ────────────────────────────────────────────────────────
+export function validateAttachmentIndex(index: unknown): number {
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
+    throw new Error('Invalid attachment index: must be a non-negative integer')
+  }
+  if (index > 1000) {
+    throw new Error('Invalid attachment index: exceeds maximum value')
+  }
+  return index
+}
+
 // ── String field (general purpose) ──────────────────────────────────────────
 export function validateString(value: unknown, name: string, maxLength = 1024): string {
   if (typeof value !== 'string') {

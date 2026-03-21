@@ -42,6 +42,10 @@ const api = {
   deleteMessage: (accountId: string, folder: string, uid: number) => ipcRenderer.invoke('mail:delete', accountId, folder, uid) as Promise<void>,
   moveMessage:   (accountId: string, folder: string, uid: number, dest: string) => ipcRenderer.invoke('mail:move', accountId, folder, uid, dest) as Promise<void>,
 
+  // Attachments
+  downloadAttachment: (accountId: string, folder: string, uid: number, attachmentIndex: number) =>
+    ipcRenderer.invoke('mail:download-attachment', accountId, folder, uid, attachmentIndex) as Promise<{ saved: boolean; filePath?: string }>,
+
   // Send
   sendMail:      (accountId: string, msg: OutgoingMessage) => ipcRenderer.invoke('mail:send', accountId, msg) as Promise<void>,
 

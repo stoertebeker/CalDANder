@@ -6,7 +6,8 @@ import {
   validatePage,
   validateBoolean,
   validateSearchCriteria,
-  validateString
+  validateString,
+  validateAttachmentIndex
 } from './ipc-validators'
 
 describe('validateAccountId', () => {
@@ -184,6 +185,33 @@ describe('validateSearchCriteria', () => {
 
   it('rejects from exceeding maximum length', () => {
     expect(() => validateSearchCriteria({ from: 'a'.repeat(257) })).toThrow('maximum length')
+  })
+})
+
+describe('validateAttachmentIndex', () => {
+  it('accepts zero (first attachment)', () => {
+    expect(validateAttachmentIndex(0)).toBe(0)
+  })
+
+  it('accepts positive integers', () => {
+    expect(validateAttachmentIndex(5)).toBe(5)
+  })
+
+  it('rejects negative numbers', () => {
+    expect(() => validateAttachmentIndex(-1)).toThrow('non-negative integer')
+  })
+
+  it('rejects non-integer numbers', () => {
+    expect(() => validateAttachmentIndex(1.5)).toThrow('non-negative integer')
+  })
+
+  it('rejects non-number values', () => {
+    expect(() => validateAttachmentIndex('0')).toThrow('non-negative integer')
+    expect(() => validateAttachmentIndex(null)).toThrow('non-negative integer')
+  })
+
+  it('rejects index exceeding maximum value', () => {
+    expect(() => validateAttachmentIndex(1001)).toThrow('maximum value')
   })
 })
 

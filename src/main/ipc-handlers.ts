@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { loadAccounts, saveAccounts, configExists, loadApiKey, saveApiKey, MailAccount } from './config'
 import { IMAPClient, SearchCriteria } from './imap-client'
 import { sendMail, OutgoingMessage } from './smtp-client'
@@ -10,7 +11,8 @@ import {
   validatePage,
   validateBoolean,
   validateSearchCriteria,
-  validateString
+  validateString,
+  validateAttachmentIndex
 } from './ipc-validators'
 import { auditInfo, auditWarn, auditError } from './audit-logger'
 
@@ -153,6 +155,32 @@ export function registerIpcHandlers(): void {
       resetLockTimer()
       return getClient(validateAccountId(accountId))
         .fetchMessage(validateFolder(folder), validateUid(uid))
+    }
+  )
+
+  ipcMain.handle('mail:download-attachment',
+    async (_event, accountId: string, folder: string, uid: number, attachmentIndex: number) => {
+      resetLockTimer()
+      const validId    = validateAccountId(accountId)
+      const validFolder = validateFolder(folder)
+      const validUid   = validateUid(uid)
+      const validIndex = validateAttachmentIndex(attachmentIndex)
+
+      const attachment = await getClient(validId)
+        .downloadAttachment(validFolder, validUid, validIndex)
+
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        defaultPath: attachment.filename,
+        filters: [{ name: 'All Files', extensions: ['*'] }]
+      })
+
+      if (canceled || !filePath) return { saved: false }
+
+      await writeFile(filePath, attachment.content)
+      auditInfo('mail.attachment-downloaded', {
+        accountId: validId, folder: validFolder, uid: validUid, attachmentIndex: validIndex
+      })
+      return { saved: true, filePath }
     }
   )
 
