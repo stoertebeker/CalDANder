@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import type { ChatMessage } from '../../main/ai'
+import { parseCalendarEvents } from '../validate-calendar-events'
 
 interface Props {
   emailContext?: string
@@ -18,25 +19,28 @@ function renderContent(text: string): React.ReactElement {
       {parts.map((part, i) => {
         if (part.startsWith('```json')) {
           const json = part.replace(/^```json\n?/, '').replace(/\n?```$/, '')
-          try {
-            const data = JSON.parse(json)
-            if (data.events) {
+          const result = parseCalendarEvents(json)
+          if (result != null) {
+            if (result.tooMany) {
+              return <pre key={i} className="bg-gray-900 rounded p-2 text-xs overflow-x-auto my-2 text-yellow-400">Too many events ({result.count}). Showing raw JSON instead.{'\n\n'}{json}</pre>
+            }
+            if (result.events.length > 0) {
               return (
                 <div key={i} className="my-2 space-y-2">
-                  {(data.events as Array<{title:string;start:string;end:string;location?:string;description?:string}>).map((ev, j) => (
+                  {result.events.map((ev, j) => (
                     <div key={j} className="bg-purple-900/40 border border-purple-700 rounded p-3 text-xs">
                       <div className="font-semibold text-purple-200">{ev.title}</div>
                       <div className="text-purple-300 mt-1">
-                        {new Date(ev.start).toLocaleString()} → {new Date(ev.end).toLocaleString()}
+                        {new Date(ev.start).toLocaleString()} &rarr; {new Date(ev.end).toLocaleString()}
                       </div>
-                      {ev.location    && <div className="text-gray-400 mt-0.5">📍 {ev.location}</div>}
+                      {ev.location    && <div className="text-gray-400 mt-0.5">&#x1F4CD; {ev.location}</div>}
                       {ev.description && <div className="text-gray-400 mt-0.5">{ev.description}</div>}
                     </div>
                   ))}
                 </div>
               )
             }
-          } catch { /* not parseable — fall through to code block */ }
+          }
           return <pre key={i} className="bg-gray-900 rounded p-2 text-xs overflow-x-auto my-2">{json}</pre>
         }
         return <span key={i} className="whitespace-pre-wrap">{part}</span>
