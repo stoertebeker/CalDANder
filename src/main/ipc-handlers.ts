@@ -3,6 +3,15 @@ import { loadAccounts, saveAccounts, configExists, loadApiKey, saveApiKey, MailA
 import { IMAPClient, SearchCriteria } from './imap-client'
 import { sendMail, OutgoingMessage } from './smtp-client'
 import { chat, ChatMessage } from './ai'
+import {
+  validateAccountId,
+  validateFolder,
+  validateUid,
+  validatePage,
+  validateBoolean,
+  validateSearchCriteria,
+  validateString
+} from './ipc-validators'
 
 // Master passphrase is held in memory only — never written to disk or sent to renderer
 let masterPassphrase: string | null = null
@@ -26,6 +35,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:unlock', async (_event, passphrase: string) => {
     try {
+      validateString(passphrase, 'passphrase')
       accounts = loadAccounts(passphrase)
       masterPassphrase = passphrase
       imapClients.clear()
@@ -37,6 +47,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:create-config', async (_event, passphrase: string) => {
     try {
+      validateString(passphrase, 'passphrase')
       saveAccounts([], passphrase)
       masterPassphrase = passphrase
       accounts = []
@@ -53,6 +64,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:save-account', async (_event, account: MailAccount) => {
     if (!masterPassphrase) throw new Error('Not unlocked')
+    validateAccountId(account?.id)
     const idx = accounts.findIndex((a) => a.id === account.id)
     if (idx >= 0) {
       // Preserve existing password if a blank one was submitted (edit without password change)
@@ -69,63 +81,72 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:delete-account', async (_event, accountId: string) => {
     if (!masterPassphrase) throw new Error('Not unlocked')
-    accounts = accounts.filter((a) => a.id !== accountId)
+    const validId = validateAccountId(accountId)
+    accounts = accounts.filter((a) => a.id !== validId)
     saveAccounts(accounts, masterPassphrase)
-    imapClients.delete(accountId)
+    imapClients.delete(validId)
   })
 
   // ── Folders ───────────────────────────────────────────────────────────────
   ipcMain.handle('mail:list-folders', async (_event, accountId: string) => {
-    return getClient(accountId).listFolders()
+    return getClient(validateAccountId(accountId)).listFolders()
   })
 
   // ── Messages ──────────────────────────────────────────────────────────────
   ipcMain.handle('mail:list-messages',
     async (_event, accountId: string, folder: string, page: number) => {
-      return getClient(accountId).listMessages(folder, page, 50)
+      return getClient(validateAccountId(accountId))
+        .listMessages(validateFolder(folder), validatePage(page), 50)
     }
   )
 
   ipcMain.handle('mail:fetch-message',
     async (_event, accountId: string, folder: string, uid: number) => {
-      return getClient(accountId).fetchMessage(folder, uid)
+      return getClient(validateAccountId(accountId))
+        .fetchMessage(validateFolder(folder), validateUid(uid))
     }
   )
 
   ipcMain.handle('mail:search',
     async (_event, accountId: string, folder: string, criteria: SearchCriteria) => {
-      return getClient(accountId).search(folder, criteria)
+      return getClient(validateAccountId(accountId))
+        .search(validateFolder(folder), validateSearchCriteria(criteria))
     }
   )
 
   ipcMain.handle('mail:mark-read',
     async (_event, accountId: string, folder: string, uid: number, read: boolean) => {
-      return getClient(accountId).markRead(folder, uid, read)
+      return getClient(validateAccountId(accountId))
+        .markRead(validateFolder(folder), validateUid(uid), validateBoolean(read, 'read'))
     }
   )
 
   ipcMain.handle('mail:flag',
     async (_event, accountId: string, folder: string, uid: number, flagged: boolean) => {
-      return getClient(accountId).flagMessage(folder, uid, flagged)
+      return getClient(validateAccountId(accountId))
+        .flagMessage(validateFolder(folder), validateUid(uid), validateBoolean(flagged, 'flagged'))
     }
   )
 
   ipcMain.handle('mail:delete',
     async (_event, accountId: string, folder: string, uid: number) => {
-      return getClient(accountId).deleteMessage(folder, uid)
+      return getClient(validateAccountId(accountId))
+        .deleteMessage(validateFolder(folder), validateUid(uid))
     }
   )
 
   ipcMain.handle('mail:move',
     async (_event, accountId: string, folder: string, uid: number, dest: string) => {
-      return getClient(accountId).moveMessage(folder, uid, dest)
+      return getClient(validateAccountId(accountId))
+        .moveMessage(validateFolder(folder), validateUid(uid), validateFolder(dest))
     }
   )
 
   // ── Send ──────────────────────────────────────────────────────────────────
   ipcMain.handle('mail:send', async (_event, accountId: string, msg: OutgoingMessage) => {
-    const account = accounts.find((a) => a.id === accountId)
-    if (!account) throw new Error(`Account ${accountId} not found`)
+    const validId = validateAccountId(accountId)
+    const account = accounts.find((a) => a.id === validId)
+    if (!account) throw new Error(`Account ${validId} not found`)
     await sendMail(account, msg)
   })
 
@@ -137,6 +158,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('ai:save-api-key', (_event, key: string) => {
     if (!masterPassphrase) throw new Error('Not unlocked')
+    validateString(key, 'API key')
     saveApiKey(key, masterPassphrase)
   })
 
