@@ -6,6 +6,7 @@ import MessageList from './components/MessageList'
 import MessageView from './components/MessageView'
 import ComposeWindow from './components/ComposeWindow'
 import AIPanel from './components/AIPanel'
+import { sanitizeEmailContext } from './sanitize-email-context'
 import type { AccountSummary } from '../preload/index'
 import type { MessageSummary, FullMessage } from '../main/imap-client'
 
@@ -128,7 +129,7 @@ export default function App(): React.ReactElement {
       {/* AI panel (right drawer) */}
       {showAI && (
         <AIPanel
-          emailContext={fullMessage ? `Subject: ${fullMessage.subject}\n\n${fullMessage.textBody}` : undefined}
+          emailContext={fullMessage ? sanitizeEmailContext(fullMessage.subject, fullMessage.textBody) : undefined}
           onClose={() => setShowAI(false)}
         />
       )}
