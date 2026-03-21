@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import { loadAccounts, saveAccounts, configExists, loadApiKey, saveApiKey, MailAccount } from './config'
 import { IMAPClient, SearchCriteria } from './imap-client'
 import { sendMail, OutgoingMessage } from './smtp-client'
@@ -13,12 +13,44 @@ import {
   validateString
 } from './ipc-validators'
 
-// Master passphrase is held in memory only — never written to disk or sent to renderer
+// Master passphrase is held in memory only — never written to disk or sent to renderer.
+// Cleared automatically after inactivity to limit exposure window.
 let masterPassphrase: string | null = null
 let accounts: MailAccount[] = []
 
 // Cache one IMAPClient per account id for the session
 const imapClients = new Map<string, IMAPClient>()
+
+// ── Auto-lock after inactivity ────────────────────────────────────────────
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+let lockTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Clear all sensitive state from memory and notify all renderer windows.
+ */
+export function lockApp(): void {
+  masterPassphrase = null
+  accounts = []
+  imapClients.clear()
+  if (lockTimer) {
+    clearTimeout(lockTimer)
+    lockTimer = null
+  }
+  // Notify every open renderer window so they return to the unlock screen
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('app:locked')
+  }
+}
+
+/**
+ * Reset the inactivity timer. Called on every authenticated IPC action.
+ */
+function resetLockTimer(): void {
+  if (lockTimer) clearTimeout(lockTimer)
+  if (masterPassphrase) {
+    lockTimer = setTimeout(lockApp, LOCK_TIMEOUT_MS)
+  }
+}
 
 function getClient(accountId: string): IMAPClient {
   const account = accounts.find((a) => a.id === accountId)
@@ -39,6 +71,7 @@ export function registerIpcHandlers(): void {
       accounts = loadAccounts(passphrase)
       masterPassphrase = passphrase
       imapClients.clear()
+      resetLockTimer()
       return { ok: true }
     } catch (err) {
       return { ok: false, error: (err as Error).message }
@@ -51,6 +84,7 @@ export function registerIpcHandlers(): void {
       saveAccounts([], passphrase)
       masterPassphrase = passphrase
       accounts = []
+      resetLockTimer()
       return { ok: true }
     } catch (err) {
       return { ok: false, error: (err as Error).message }
@@ -58,12 +92,14 @@ export function registerIpcHandlers(): void {
   })
 
   // ── Accounts ──────────────────────────────────────────────────────────────
-  ipcMain.handle('mail:list-accounts', () =>
-    accounts.map(({ password: _pw, ...rest }) => rest)
-  )
+  ipcMain.handle('mail:list-accounts', () => {
+    resetLockTimer()
+    return accounts.map(({ password: _pw, ...rest }) => rest)
+  })
 
   ipcMain.handle('mail:save-account', async (_event, account: MailAccount) => {
     if (!masterPassphrase) throw new Error('Not unlocked')
+    resetLockTimer()
     validateAccountId(account?.id)
     const idx = accounts.findIndex((a) => a.id === account.id)
     if (idx >= 0) {
@@ -81,6 +117,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:delete-account', async (_event, accountId: string) => {
     if (!masterPassphrase) throw new Error('Not unlocked')
+    resetLockTimer()
     const validId = validateAccountId(accountId)
     accounts = accounts.filter((a) => a.id !== validId)
     saveAccounts(accounts, masterPassphrase)
@@ -89,12 +126,14 @@ export function registerIpcHandlers(): void {
 
   // ── Folders ───────────────────────────────────────────────────────────────
   ipcMain.handle('mail:list-folders', async (_event, accountId: string) => {
+    resetLockTimer()
     return getClient(validateAccountId(accountId)).listFolders()
   })
 
   // ── Messages ──────────────────────────────────────────────────────────────
   ipcMain.handle('mail:list-messages',
     async (_event, accountId: string, folder: string, page: number) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .listMessages(validateFolder(folder), validatePage(page), 50)
     }
@@ -102,6 +141,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:fetch-message',
     async (_event, accountId: string, folder: string, uid: number) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .fetchMessage(validateFolder(folder), validateUid(uid))
     }
@@ -109,6 +149,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:search',
     async (_event, accountId: string, folder: string, criteria: SearchCriteria) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .search(validateFolder(folder), validateSearchCriteria(criteria))
     }
@@ -116,6 +157,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:mark-read',
     async (_event, accountId: string, folder: string, uid: number, read: boolean) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .markRead(validateFolder(folder), validateUid(uid), validateBoolean(read, 'read'))
     }
@@ -123,6 +165,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:flag',
     async (_event, accountId: string, folder: string, uid: number, flagged: boolean) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .flagMessage(validateFolder(folder), validateUid(uid), validateBoolean(flagged, 'flagged'))
     }
@@ -130,6 +173,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:delete',
     async (_event, accountId: string, folder: string, uid: number) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .deleteMessage(validateFolder(folder), validateUid(uid))
     }
@@ -137,6 +181,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('mail:move',
     async (_event, accountId: string, folder: string, uid: number, dest: string) => {
+      resetLockTimer()
       return getClient(validateAccountId(accountId))
         .moveMessage(validateFolder(folder), validateUid(uid), validateFolder(dest))
     }
@@ -144,6 +189,7 @@ export function registerIpcHandlers(): void {
 
   // ── Send ──────────────────────────────────────────────────────────────────
   ipcMain.handle('mail:send', async (_event, accountId: string, msg: OutgoingMessage) => {
+    resetLockTimer()
     const validId = validateAccountId(accountId)
     const account = accounts.find((a) => a.id === validId)
     if (!account) throw new Error(`Account ${validId} not found`)
@@ -153,11 +199,13 @@ export function registerIpcHandlers(): void {
   // ── AI ────────────────────────────────────────────────────────────────────
   ipcMain.handle('ai:get-api-key', () => {
     if (!masterPassphrase) throw new Error('Not unlocked')
+    resetLockTimer()
     return loadApiKey(masterPassphrase)
   })
 
   ipcMain.handle('ai:save-api-key', (_event, key: string) => {
     if (!masterPassphrase) throw new Error('Not unlocked')
+    resetLockTimer()
     validateString(key, 'API key')
     saveApiKey(key, masterPassphrase)
   })
@@ -165,6 +213,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('ai:chat',
     async (_event, history: ChatMessage[], userMessage: string, emailContext?: string) => {
       if (!masterPassphrase) throw new Error('Not unlocked')
+      resetLockTimer()
       const storedKey = loadApiKey(masterPassphrase) ?? undefined
       return chat(history, userMessage, emailContext, storedKey)
     }

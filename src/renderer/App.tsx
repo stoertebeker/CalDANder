@@ -44,6 +44,22 @@ export default function App(): React.ReactElement {
     if (unlocked) refreshAccounts()
   }, [unlocked])
 
+  // Listen for auto-lock events from the main process
+  useEffect(() => {
+    const unsubscribe = window.api.onLocked(() => {
+      setUnlocked(false)
+      setAccounts([])
+      setSelectedAccountId(null)
+      setSelectedMessage(null)
+      setFullMessage(null)
+      setShowCompose(false)
+      setShowAI(false)
+      setReplyTo(null)
+      setView('mail')
+    })
+    return unsubscribe
+  }, [])
+
   async function openMessage(msg: MessageSummary): Promise<void> {
     setSelectedMessage(msg)
     setFullMessage(null)

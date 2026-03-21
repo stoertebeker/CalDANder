@@ -19,6 +19,11 @@ const api = {
   configExists:  ():                                   Promise<boolean>        => ipcRenderer.invoke('mail:config-exists'),
   unlock:        (passphrase: string):                 Promise<UnlockResult>   => ipcRenderer.invoke('mail:unlock', passphrase),
   createConfig:  (passphrase: string):                 Promise<UnlockResult>   => ipcRenderer.invoke('mail:create-config', passphrase),
+  onLocked:      (callback: () => void): (() => void) => {
+    const handler = (): void => { callback() }
+    ipcRenderer.on('app:locked', handler)
+    return () => { ipcRenderer.removeListener('app:locked', handler) }
+  },
 
   // Accounts
   listAccounts:  ():                                   Promise<AccountSummary[]> => ipcRenderer.invoke('mail:list-accounts'),

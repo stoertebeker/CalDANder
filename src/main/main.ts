@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
-import { registerIpcHandlers } from './ipc-handlers'
+import { registerIpcHandlers, lockApp } from './ipc-handlers'
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -44,6 +44,11 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Clear sensitive data from memory before the process exits
+app.on('before-quit', () => {
+  lockApp()
 })
 
 // Prevent new window creation from renderer
