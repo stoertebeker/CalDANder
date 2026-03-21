@@ -12,6 +12,7 @@ import {
   validateSearchCriteria,
   validateString
 } from './ipc-validators'
+import { auditInfo, auditWarn, auditError } from './audit-logger'
 
 // Master passphrase is held in memory only — never written to disk or sent to renderer.
 // Cleared automatically after inactivity to limit exposure window.
@@ -29,6 +30,7 @@ let lockTimer: ReturnType<typeof setTimeout> | null = null
  * Clear all sensitive state from memory and notify all renderer windows.
  */
 export function lockApp(): void {
+  auditInfo('app.locked')
   masterPassphrase = null
   accounts = []
   imapClients.clear()
@@ -72,8 +74,10 @@ export function registerIpcHandlers(): void {
       masterPassphrase = passphrase
       imapClients.clear()
       resetLockTimer()
+      auditInfo('auth.unlock', { success: true })
       return { ok: true }
     } catch (err) {
+      auditWarn('auth.unlock', { success: false, reason: (err as Error).message })
       return { ok: false, error: (err as Error).message }
     }
   })
@@ -85,8 +89,10 @@ export function registerIpcHandlers(): void {
       masterPassphrase = passphrase
       accounts = []
       resetLockTimer()
+      auditInfo('auth.config-created')
       return { ok: true }
     } catch (err) {
+      auditError('auth.config-created', { success: false, reason: (err as Error).message })
       return { ok: false, error: (err as Error).message }
     }
   })
@@ -102,6 +108,7 @@ export function registerIpcHandlers(): void {
     resetLockTimer()
     validateAccountId(account?.id)
     const idx = accounts.findIndex((a) => a.id === account.id)
+    const action = idx >= 0 ? 'updated' : 'added'
     if (idx >= 0) {
       // Preserve existing password if a blank one was submitted (edit without password change)
       const merged = account.password
@@ -113,6 +120,7 @@ export function registerIpcHandlers(): void {
     }
     saveAccounts(accounts, masterPassphrase)
     imapClients.delete(account.id)
+    auditInfo(`account.${action}`, { accountId: account.id, email: account.emailAddress })
   })
 
   ipcMain.handle('mail:delete-account', async (_event, accountId: string) => {
@@ -122,6 +130,7 @@ export function registerIpcHandlers(): void {
     accounts = accounts.filter((a) => a.id !== validId)
     saveAccounts(accounts, masterPassphrase)
     imapClients.delete(validId)
+    auditInfo('account.deleted', { accountId: validId })
   })
 
   // ── Folders ───────────────────────────────────────────────────────────────
@@ -174,16 +183,21 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('mail:delete',
     async (_event, accountId: string, folder: string, uid: number) => {
       resetLockTimer()
-      return getClient(validateAccountId(accountId))
-        .deleteMessage(validateFolder(folder), validateUid(uid))
+      const validId = validateAccountId(accountId)
+      const validUid = validateUid(uid)
+      await getClient(validId).deleteMessage(validateFolder(folder), validUid)
+      auditInfo('mail.deleted', { accountId: validId, folder, uid: validUid })
     }
   )
 
   ipcMain.handle('mail:move',
     async (_event, accountId: string, folder: string, uid: number, dest: string) => {
       resetLockTimer()
-      return getClient(validateAccountId(accountId))
-        .moveMessage(validateFolder(folder), validateUid(uid), validateFolder(dest))
+      const validId = validateAccountId(accountId)
+      const validUid = validateUid(uid)
+      const validDest = validateFolder(dest)
+      await getClient(validId).moveMessage(validateFolder(folder), validUid, validDest)
+      auditInfo('mail.moved', { accountId: validId, folder, uid: validUid, destination: validDest })
     }
   )
 
@@ -193,7 +207,13 @@ export function registerIpcHandlers(): void {
     const validId = validateAccountId(accountId)
     const account = accounts.find((a) => a.id === validId)
     if (!account) throw new Error(`Account ${validId} not found`)
-    await sendMail(account, msg)
+    try {
+      await sendMail(account, msg)
+      auditInfo('mail.sent', { accountId: validId, recipientCount: msg.to.length })
+    } catch (err) {
+      auditError('mail.sent', { accountId: validId, success: false, reason: (err as Error).message })
+      throw err
+    }
   })
 
   // ── AI ────────────────────────────────────────────────────────────────────
@@ -208,6 +228,7 @@ export function registerIpcHandlers(): void {
     resetLockTimer()
     validateString(key, 'API key')
     saveApiKey(key, masterPassphrase)
+    auditInfo('config.api-key-saved')
   })
 
   ipcMain.handle('ai:chat',
@@ -215,7 +236,14 @@ export function registerIpcHandlers(): void {
       if (!masterPassphrase) throw new Error('Not unlocked')
       resetLockTimer()
       const storedKey = loadApiKey(masterPassphrase) ?? undefined
-      return chat(history, userMessage, emailContext, storedKey)
+      try {
+        const result = await chat(history, userMessage, emailContext, storedKey)
+        auditInfo('ai.chat', { hasEmailContext: !!emailContext })
+        return result
+      } catch (err) {
+        auditError('ai.chat', { success: false, reason: (err as Error).message })
+        throw err
+      }
     }
   )
 }

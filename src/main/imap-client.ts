@@ -1,6 +1,7 @@
 import { ImapFlow, MailboxLockObject, FetchMessageObject } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import { MailAccount } from './config'
+import { auditInfo, auditError } from './audit-logger'
 
 export interface Folder {
   path: string
@@ -72,9 +73,24 @@ export class IMAPClient {
     this.account = account
   }
 
+  /** Connect with audit logging for success/failure. */
+  private async connect(client: ImapFlow): Promise<void> {
+    try {
+      await client.connect()
+      auditInfo('imap.connected', { host: this.account.imapHost, port: this.account.imapPort })
+    } catch (err) {
+      auditError('imap.connection-failed', {
+        host: this.account.imapHost,
+        port: this.account.imapPort,
+        reason: (err as Error).message
+      })
+      throw err
+    }
+  }
+
   async listFolders(): Promise<Folder[]> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     try {
       const list = await client.list()
       return list.map((m) => ({
@@ -95,7 +111,7 @@ export class IMAPClient {
     pageSize: number
   ): Promise<MessageSummary[]> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     let lock: MailboxLockObject | null = null
     try {
       lock = await client.getMailboxLock(folder)
@@ -125,7 +141,7 @@ export class IMAPClient {
 
   async fetchMessage(folder: string, uid: number): Promise<FullMessage> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     let lock: MailboxLockObject | null = null
     try {
       lock = await client.getMailboxLock(folder)
@@ -162,7 +178,7 @@ export class IMAPClient {
 
   async search(folder: string, criteria: SearchCriteria): Promise<MessageSummary[]> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     let lock: MailboxLockObject | null = null
     try {
       lock = await client.getMailboxLock(folder)
@@ -201,7 +217,7 @@ export class IMAPClient {
 
   async deleteMessage(folder: string, uid: number): Promise<void> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     let lock: MailboxLockObject | null = null
     try {
       lock = await client.getMailboxLock(folder)
@@ -214,7 +230,7 @@ export class IMAPClient {
 
   async moveMessage(folder: string, uid: number, dest: string): Promise<void> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     let lock: MailboxLockObject | null = null
     try {
       lock = await client.getMailboxLock(folder)
@@ -227,7 +243,7 @@ export class IMAPClient {
 
   private async flagOp(folder: string, uid: number, flag: string, add: boolean): Promise<void> {
     const client = buildClient(this.account)
-    await client.connect()
+    await this.connect(client)
     let lock: MailboxLockObject | null = null
     try {
       lock = await client.getMailboxLock(folder)
