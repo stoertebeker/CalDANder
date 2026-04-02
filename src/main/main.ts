@@ -20,7 +20,12 @@ function createWindow(): BrowserWindow {
 
   // Block navigation to external URLs in the window; open in system browser instead
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    try {
+      const scheme = new URL(url).protocol
+      if (['https:', 'http:', 'mailto:'].includes(scheme)) {
+        shell.openExternal(url)
+      }
+    } catch { /* malformed URL — ignore */ }
     return { action: 'deny' }
   })
 
