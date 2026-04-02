@@ -96,7 +96,7 @@ The file is created automatically on first save. All passwords are encrypted wit
 
 The master passphrase is the single key that protects all your stored credentials.
 
-- Minimum 8 characters; use a strong, unique passphrase
+- Minimum 12 characters; use a strong, unique passphrase
 - Never stored anywhere — not on disk, not in memory between sessions
 - You will be prompted for it every time you start CalDANder
 - If forgotten, delete `~/.caldander/config.json` and start fresh

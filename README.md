@@ -119,7 +119,7 @@ src/
 | File | Contents |
 |---|---|
 | `~/.caldander/config.json` | Mail accounts (AES-256-GCM encrypted) |
-| `~/.caldander/ai-settings.json` | Anthropic API key (plaintext, mode 600) |
+| `~/.caldander/ai-settings.json` | Anthropic API key (encrypted with master passphrase, mode 600) |
 
 ---
 

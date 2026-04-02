@@ -29,7 +29,7 @@ export const ALLOWED_ATTR = [
   'href', 'src', 'target', 'rel',
 ]
 
-export const SAFE_URL_PATTERN = /^(?:https?:|mailto:|cid:|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/i
+export const SAFE_URL_PATTERN = /^(?:https?:|mailto:|data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,)/i
 
 /**
  * DOMPurify hook: validate href/src to only allow safe URL schemes.

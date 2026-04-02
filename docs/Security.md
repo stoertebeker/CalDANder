@@ -15,8 +15,8 @@ All email passwords are encrypted before being written to disk using:
 | Algorithm | AES-256-GCM |
 | Key derivation | PBKDF2 |
 | Hash | SHA-256 |
-| Iterations | 310 000 |
-| Salt | 16 bytes, randomly generated per account |
+| Iterations | 600 000 |
+| Salt | 32 bytes, randomly generated per account |
 | IV | 12 bytes, randomly generated per encryption |
 | Auth tag | 16 bytes (GCM authentication tag) |
 
