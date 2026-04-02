@@ -30,6 +30,12 @@ export default function App(): React.ReactElement {
   const [showAI,            setShowAI]             = useState(false)
   const [replyTo,           setReplyTo]            = useState<FullMessage | null>(null)
 
+  // Clear stale message context when account or folder changes
+  useEffect(() => {
+    setSelectedMessage(null)
+    setFullMessage(null)
+  }, [selectedAccountId, selectedFolder])
+
   async function refreshAccounts(): Promise<void> {
     const list = await window.api.listAccounts()
     setAccounts(list)
