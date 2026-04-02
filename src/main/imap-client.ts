@@ -68,6 +68,7 @@ function buildClient(account: MailAccount): ImapFlow {
 }
 
 export class IMAPClient {
+  private static readonly MAX_SEARCH_RESULTS = 200
   private account: MailAccount
 
   constructor(account: MailAccount) {
@@ -231,7 +232,7 @@ export class IMAPClient {
         const uids = await client.search(query, { uid: true })
         if (uids.length === 0) return []
 
-        const range = uids.slice(0, 200).join(',')
+        const range = uids.slice(-IMAPClient.MAX_SEARCH_RESULTS).join(',')
         const results: MessageSummary[] = []
         for await (const msg of client.fetch(range, {
           uid: true, flags: true, envelope: true, bodyStructure: true
